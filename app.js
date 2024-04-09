@@ -167,11 +167,11 @@ async function handleEvent(event) {
   const output = response.choices[0].message;
 
   // 解析股票名稱和代碼
-  //const stockName = JSON.parse(output.function_call.arguments).market_name;
+  const stockName = JSON.parse(output.function_call.arguments).market_name;
   const stockCode = JSON.parse(output.function_call.arguments).market_code;
 
   //分析k線
-  const targetChat = await fetchStockHistoryData(stockCode);
+  const targetChat = await fetchStockHistoryData(stockName);
   const targetFinance = await fetchStockData(stockCode)
 
   const chatResponse = await openai.chat.completions.create({
