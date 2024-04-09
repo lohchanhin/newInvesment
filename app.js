@@ -7,8 +7,8 @@ const line = require("@line/bot-sdk");
 //導入express模組
 const express = require("express");
 
-//導入openai模組
-const { Configuration, OpenAIApi } = require("openai");
+// 导入openai模块
+const { OpenAI } = require("openai");
 
 //導入yahoo-finance模組
 const yahooFinance = require('yahoo-finance2').default; // 引入yahoo-finance2库
@@ -24,6 +24,9 @@ const apiKey2 = process.env.OPENAI_API_KEY;
 
 // 创建 LINE 客户端
 const client = new line.Client(config);
+
+// 获取 OpenAI API 密钥
+const openai = new OpenAI(process.env.OPENAI_API_KEY);
 
 // 创建 Express 应用
 const app = express();
@@ -151,8 +154,7 @@ async function handleEvent(event) {
     return Promise.resolve(null);
   }
 
-  const configuration = new Configuration({ apiKey: apiKey2 });
-  const openai = new OpenAIApi(configuration);
+  
   const response = await openai.createChatCompletion({
     model:"gpt-4-turbo-preview",
     messages:[
