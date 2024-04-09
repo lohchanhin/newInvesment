@@ -274,3 +274,9 @@ async function handleEvent(event) {
 //     return client.replyMessage(event.replyToken, reply);
 //   }
 }
+
+// 监听端口
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+console.log(`listening on ${port}`);
+});
