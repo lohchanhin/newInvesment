@@ -174,7 +174,7 @@ async function handleEvent(event) {
   const targetChat = await fetchStockHistoryData(stockCode);
   const targetFinance = await fetchStockData(stockCode)
 
-  const chatResponse = await openai.createChatCompletion({
+  const chatResponse = await openai.chat.completions.create({
     model:"gpt-4-turbo-preview",
     messages:[
         {role:"system",content:"K線分析師"},
@@ -183,9 +183,9 @@ async function handleEvent(event) {
   })
 
    // 获取k線回复的文本
-   const chatResponseResult = chatResponse.data.choices[0].message.content;
+   const chatResponseResult = chatResponse.choices[0].message.content;
 
-   const financeResponse = await openai.createChatCompletion({
+   const financeResponse = await openai.chat.completions.create({
     model:"gpt-4-turbo-preview",
     messages:[
         {role:"system",content:"財報分析師"},
@@ -193,7 +193,7 @@ async function handleEvent(event) {
     ],
   })
 
-   const financeResponseResult = financeResponse.data.choices[0].message.content;
+   const financeResponseResult = financeResponse.choices[0].message.content;
    
    const finalReply = chatResponseResult + "\n" +financeResponseResult;
 
