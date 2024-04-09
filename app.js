@@ -155,7 +155,7 @@ async function handleEvent(event) {
   }
 
   
-  const response = await openai.createChatCompletion({
+  const response = await openai.chat.completions.create({
     model:"gpt-4-turbo-preview",
     messages:[
       {"role": "system", "content": "盧振興的AI助手"},
