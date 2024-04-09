@@ -11,7 +11,7 @@ const express = require("express");
 const { Configuration, OpenAIApi } = require("openai");
 
 //導入yahoo-finance模組
-const yahooFinance = require("yahoo-finance");
+const yahooFinance = require('yahoo-finance2').default; // 引入yahoo-finance2库
 
 // 配置 LINE 令牌和密钥
 const config = {
@@ -39,51 +39,45 @@ app.post("/callback", line.middleware(config), (req, res) => {
 });
 
 //建立取得財報函數
-const fetchStockData = async (ticker) => {
+async function fetchStockData(ticker) {
   try {
-    const data = await yahooFinance.quote({
-      symbol: ticker,
-      modules: ["price", "summaryProfile", "financialData", "earnings"],
+    // 使用quoteSummary获取详细的股票信息
+    const quoteSummary = await yahooFinance.quoteSummary(ticker, {
+      modules: ["price", "summaryDetail", "financialData", "earnings", "defaultKeyStatistics"]
     });
 
     const result = {
-      companyName: data.summaryProfile?.longName,
-      currentQuarterEstimate:
-        data.earnings?.earningsChart?.currentQuarterEstimate,
-      earningsQ1_2023: data.earnings?.earningsChart?.quarterly?.find(
-        (item) => item.date === "1Q2023"
-      )?.actual,
-      earningsQ4_2022: data.earnings?.earningsChart?.quarterly?.find(
-        (item) => item.date === "4Q2022"
-      )?.actual,
-      earningsQ3_2022: data.earnings?.earningsChart?.quarterly?.find(
-        (item) => item.date === "3Q2022"
-      )?.actual,
-      earningsQ2_2022: data.earnings?.earningsChart?.quarterly?.find(
-        (item) => item.date === "2Q2022"
-      )?.actual,
-      currentPrice: data.financialData?.currentPrice,
-      targetHighPrice: data.financialData?.targetHighPrice,
-      targetLowPrice: data.financialData?.targetLowPrice,
-      targetMeanPrice: data.financialData?.targetMeanPrice,
-      numberOfAnalystOpinions: data.financialData?.numberOfAnalystOpinions,
-      recommendationMean: data.financialData?.recommendationMean,
-      revenuePerShare: data.financialData?.revenuePerShare,
-      returnOnAssets: data.financialData?.returnOnAssets,
-      returnOnEquity: data.financialData?.returnOnEquity,
-      grossProfits: data.financialData?.grossProfits,
-      grossMargins: data.financialData?.grossMargins,
-      ebitdaMargins: data.financialData?.ebitdaMargins,
-      operatingMargins: data.financialData?.operatingMargins,
+      companyName: quoteSummary.price?.longName,
+      currentPrice: quoteSummary.price?.regularMarketPrice,
+      targetHighPrice: quoteSummary.financialData?.targetHighPrice,
+      targetLowPrice: quoteSummary.financialData?.targetLowPrice,
+      targetMeanPrice: quoteSummary.financialData?.targetMeanPrice,
+      numberOfAnalystOpinions: quoteSummary.financialData?.numberOfAnalystOpinions,
+      recommendationMean: quoteSummary.financialData?.recommendationMean,
+      revenuePerShare: quoteSummary.financialData?.revenuePerShare,
+      returnOnAssets: quoteSummary.financialData?.returnOnAssets,
+      returnOnEquity: quoteSummary.financialData?.returnOnEquity,
+      grossProfits: quoteSummary.financialData?.grossProfit,
+      grossMargins: quoteSummary.financialData?.grossMargins,
+      ebitdaMargins: quoteSummary.financialData?.ebitdaMargins,
+      operatingMargins: quoteSummary.financialData?.operatingMargins,
     };
 
-    // 將資料整理成字串
-    const stockDataString = JSON.stringify(result, null, 2);
+    // 添加可用的收益信息
+    // 注意: 这个库可能不会以相同方式提供特定季度的收益信息
+    if (quoteSummary.earnings?.earningsChart?.quarterly) {
+      quoteSummary.earnings.earningsChart.quarterly.forEach(quarter => {
+        const quarterKey = `earnings${quarter.date}`;
+        result[quarterKey] = quarter.actual;
+      });
+    }
 
+    // 将结果转换为字符串以便打印或返回
+    const stockDataString = JSON.stringify(result, null, 2);
     console.log(`${ticker} stock data:`);
     console.log(stockDataString);
 
-    return stockDataString;
+    return result; // 返回对象，如果需要字符串，则返回stockDataString
   } catch (error) {
     console.error(`Error fetching data for ${ticker}:`, error);
   }
@@ -92,44 +86,40 @@ const fetchStockData = async (ticker) => {
 //取得歷史股價函數
 const fetchStockHistoryData = async (ticker) => {
   try {
-    // 設置日期範圍為過去兩個月
+    // 设置日期范围为过去两个月
     const today = new Date();
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(today.getMonth() - 2);
+    const twoMonthsAgo = new Date(today);
+    twoMonthsAgo.setMonth(today.getMonth() - 2);
 
-    // 將日期轉換為 yyyy-mm-dd 格式
-    const formatDate = (date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
+    const fromDate = twoMonthsAgo.toISOString().split('T')[0]; // 格式化为YYYY-MM-DD
+    const toDate = today.toISOString().split('T')[0];
 
-      return `${year}-${month}-${day}`;
+    // 使用 yahooFinance.historical 方法获取股票的历史市场数据
+    const queryOptions = {
+      period1: fromDate,
+      period2: toDate,
+      interval: "1d", // 每天的数据
     };
 
-    const fromDate = formatDate(oneMonthAgo);
-    const toDate = formatDate(today);
+    const historicalData = await yahooFinance.historical(ticker, queryOptions);
 
-    // 使用 yfinance 獲取股票的歷史市場數據
-    const historicalData = await yahooFinance.historical({
-      symbol: ticker,
-      from: fromDate,
-      to: toDate,
-    });
-
-    // 篩選出只有 open, high, low, close 的數據
+    // 筛选出只有 open, high, low, close 的数据
     const simplifiedData = historicalData.map((data) => ({
+      date: data.date, // 增加日期方便参考
       open: data.open,
       high: data.high,
       low: data.low,
       close: data.close,
     }));
 
-    // 將資料整理成字串
+    // 将数据整理成字符串
     const historicalDataString = JSON.stringify(simplifiedData, null, 2);
+    console.log(`${ticker} historical data:`);
+    console.log(historicalDataString);
 
-    return historicalDataString;
+    return simplifiedData; // 返回对象数组，如果需要字符串，则返回historicalDataString
   } catch (error) {
-    console.error(`Error fetching data for ${ticker}:`, error);
+    console.error(`Error fetching historical data for ${ticker}:`, error);
   }
 };
 
@@ -211,68 +201,7 @@ async function handleEvent(event) {
    // 使用 LINE API 发送消息
    return client.replyMessage(event.replyToken, reply);
 
-//   // 检查前四个字符是否是 "分析k線"
-//   if (event.message.text.slice(0, 4) === "分析k線") {
-//     const stockCode = event.message.text.slice(4).replace(/\s+/g, "");
-//     const target = await fetchStockHistoryData(stockCode);
 
-//     const configuration = new Configuration({ apiKey: apiKey2 });
-//     const openai = new OpenAIApi(configuration);
-//     const response = await openai.createChatCompletion({
-//       model: "gpt-4",
-//       messages: [
-//         {
-//           role: "system",
-//           content: "K線分析師.",
-//         },
-//         {
-//           role: "user",
-//           content:
-//             "這是過去兩個月K線資料以rsi,日均線,MACD和布林線分析,寫出分析結果以及是否適合購買,如果適合給買入點,不需要解釋技術: " +
-//             target,
-//         },
-//       ],
-//       //max_tokens: 2000,
-//       temperature: 0.1,
-//     });
-
-//     // 获取助手回复的文本
-//     const assistantReply = response.data.choices[0].message.content;
-//     // 构造回复消息
-//     const reply = { type: "text", text: assistantReply };
-
-//     // 使用 LINE API 发送图片消息
-//     return client.replyMessage(event.replyToken, reply);
-//   } else if (event.message.text.slice(0, 4) === "分析財報") {
-//     const stockCode = event.message.text.slice(4).replace(/\s+/g, "");
-//     const target = await fetchStockData(stockCode);
-
-//     const configuration = new Configuration({ apiKey: apiKey2 });
-//     const openai = new OpenAIApi(configuration);
-//     const response = await openai.createChatCompletion({
-//       model: "gpt-4",
-//       messages: [
-//         {
-//           role: "system",
-//           content: "財報分析師.",
-//         },
-//         {
-//           role: "user",
-//           content: "根據財報為該公司寫一段總結並且進行評分,滿分10分: " + target,
-//         },
-//       ],
-//       //max_tokens: 2000,
-//       temperature: 0.2,
-//     });
-
-//     // 获取助手回复的文本
-//     const assistantReply = response.data.choices[0].message.content;
-//     // 构造回复消息
-//     const reply = { type: "text", text: assistantReply };
-
-//     // 使用 LINE API 发送消息
-//     return client.replyMessage(event.replyToken, reply);
-//   }
 }
 
 // 监听端口
