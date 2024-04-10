@@ -170,7 +170,16 @@ async function handleEvent(event) {
 
   if (stockCode == 'undefined') {
     // 构造回复消息
-    const reply = { type: "text", text: '查無資料' };
+    const chatResponse = await openai.chat.completions.create({
+      model: "gpt-4-turbo-preview",
+      messages: [
+        { "role": "system", "content": "k線分析師" },
+        { "role": "user", "content": `分析k線資料,判斷是否適合買入，如果適合提供買入點建議，tp和sl:${JSON.stringify(targetChat)}` },
+      ],
+    })
+
+    const output = chatResponse.choices[0].message.content
+    const reply = { type: "text", text: output };
 
     // 使用 LINE API 发送消息
     return client.replyMessage(event.replyToken, reply);
