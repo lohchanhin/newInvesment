@@ -175,8 +175,8 @@ async function handleEvent(event) {
   const chatResponse = await openai.chat.completions.create({
     model: "gpt-4-turbo-preview",
     messages: [
-      { role: "system", content: "K線分析師" },
-      { role: "user", content: "根據k線資料給出一些技術分析:" + targetChat }
+      { "role": "system", "content": "k線分析師" },
+      { "role": "user", "content": `分析k線資料:${JSON.stringify(targetChat)}` },
     ],
   })
 
@@ -186,9 +186,9 @@ async function handleEvent(event) {
   const financeResponse = await openai.chat.completions.create({
     model: "gpt-4-turbo-preview",
     messages: [
-      { role: "system", content: "財報分析師" },
+      { "role": "system", "content": "財報分析師" },
       // 使用JSON.stringify转换targetFinance对象为字符串
-      { role: "user", content: `根据财报为该公司写一段总结并且进行评分, 满分10分: ${JSON.stringify(targetFinance, null, 2)}` }
+      { "role": "user", "content": `根据财报为该公司写一段总结并且进行评分, 满分10分: ${JSON.stringify(targetFinance)}` }
     ],
   })
 
