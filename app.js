@@ -114,9 +114,9 @@ const fetchStockHistoryData = async (ticker) => {
     }));
 
     // 将数据整理成字符串
-    const historicalDataString = JSON.stringify(simplifiedData, null, 2);
-    console.log(`${ticker} historical data:`);
-    console.log(historicalDataString);
+    //const historicalDataString = JSON.stringify(simplifiedData, null, 2);
+    //console.log(`${ticker} historical data:`);
+    //console.log(historicalDataString);
 
     return simplifiedData; // 返回对象数组，如果需要字符串，则返回historicalDataString
   } catch (error) {
@@ -176,7 +176,7 @@ async function handleEvent(event) {
     model: "gpt-4-turbo-preview",
     messages: [
       { "role": "system", "content": "k線分析師" },
-      { "role": "user", "content": `分析k線資料:${JSON.stringify(targetChat)}` },
+      { "role": "user", "content": `分析k線資料,判斷是否適合買入，如果適合提供買入點建議，tp和sl:${JSON.stringify(targetChat)}` },
     ],
   })
 
@@ -188,7 +188,7 @@ async function handleEvent(event) {
     messages: [
       { "role": "system", "content": "財報分析師" },
       // 使用JSON.stringify转换targetFinance对象为字符串
-      { "role": "user", "content": `根据财报为该公司写一段总结并且进行评分, 满分10分: ${JSON.stringify(targetFinance)}` }
+      { "role": "user", "content": `根据财报为该公司写一段总结并且进行评分, 满分10分，中文回答: ${JSON.stringify(targetFinance)}` }
     ],
   })
 
