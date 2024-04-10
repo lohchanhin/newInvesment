@@ -19,14 +19,12 @@ const config = {
   channelSecret: process.env.CHANNEL_SECRET,
 };
 
-// 获取 OpenAI API 密钥
-const apiKey2 = process.env.OPENAI_API_KEY;
-
 // 创建 LINE 客户端
 const client = new line.Client(config);
 
 // 获取 OpenAI API 密钥
-const openai = new OpenAI(process.env.OPENAI_API_KEY);
+const openai = new OpenAI({apiKey:process.env.OPENAI_API_KEY} 
+);
 
 // 创建 Express 应用
 const app = express();
@@ -167,8 +165,8 @@ async function handleEvent(event) {
   const output = response.choices[0].message;
 
   // 解析股票名稱和代碼
-  // const stockName = JSON.parse(output.arguments).market_name;
-  const stockCode = JSON.parse(output.arguments).market_code;
+  // const stockName = JSON.parse(output.function_call.arguments).market_name;
+  const stockCode = JSON.parse(output.function_call.arguments).market_code;
 
   //分析k線
   const targetChat = await fetchStockHistoryData(stockCode);
@@ -178,7 +176,7 @@ async function handleEvent(event) {
     model:"gpt-4-turbo-preview",
     messages:[
         {role:"system",content:"K線分析師"},
-        {role:"user",content:"這是過去兩個月K線資料以rsi,日均線,MACD和布林線分析,寫出分析結果以及是否適合購買,如果適合給買入點,不需要解釋技術:"+targetChat}
+        {role:"user",content:"根據k線資料給出一些技術分析:"+targetChat}
     ],
   })
 
