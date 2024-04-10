@@ -100,25 +100,25 @@ const fetchStockHistoryData = async (ticker) => {
       period1: fromDate,
       period2: toDate,
       interval: "1d", // 每天的数据
+      return:"object"
     };
 
-    const historicalData = await yahooFinance.historical(ticker, queryOptions);
+    const historicalData = await yahooFinance.chart(ticker, queryOptions);
 
-    // 筛选出只有 open, high, low, close 的数据
-    const simplifiedData = historicalData.map((data) => ({
-      date: data.date, // 增加日期方便参考
-      open: data.open,
-      high: data.high,
-      low: data.low,
-      close: data.close,
-    }));
-
-    // 将数据整理成字符串
-    //const historicalDataString = JSON.stringify(simplifiedData, null, 2);
-    //console.log(`${ticker} historical data:`);
-    //console.log(historicalDataString);
-
-    return simplifiedData; // 返回对象数组，如果需要字符串，则返回historicalDataString
+     // 从响应中提取quote信息
+     const quotes = historicalData.indicators.quote[0];
+     const timestamps = historicalData.timestamp;
+ 
+     // 使用提供的timestamps来构建每个数据点的日期
+     const simplifiedData = timestamps.map((time, index) => ({
+       date: new Date(time * 1000).toISOString().split('T')[0], // 转换UNIX时间戳为日期字符串
+       open: quotes.open[index],
+       high: quotes.high[index],
+       low: quotes.low[index],
+       close: quotes.close[index],
+     }));
+ 
+     return simplifiedData;
   } catch (error) {
     console.error(`Error fetching historical data for ${ticker}:`, error);
   }
