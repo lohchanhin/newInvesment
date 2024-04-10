@@ -168,6 +168,13 @@ async function handleEvent(event) {
   // const stockName = JSON.parse(output.function_call.arguments).market_name;
   const stockCode = JSON.parse(output.function_call.arguments).market_code;
 
+  if (stockCode == 'undefined') {
+    // 构造回复消息
+    const reply = { type: "text", text: '查無資料' };
+
+    // 使用 LINE API 发送消息
+    return client.replyMessage(event.replyToken, reply);
+  }
   //分析k線
   const targetChat = await fetchStockHistoryData(stockCode);
   const targetFinance = await fetchStockData(stockCode)
