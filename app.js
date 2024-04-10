@@ -23,7 +23,7 @@ const config = {
 const client = new line.Client(config);
 
 // 获取 OpenAI API 密钥
-const openai = new OpenAI({apiKey:process.env.OPENAI_API_KEY} 
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY }
 );
 
 // 创建 Express 应用
@@ -152,15 +152,15 @@ async function handleEvent(event) {
     return Promise.resolve(null);
   }
 
-  
+
   const response = await openai.chat.completions.create({
-    model:"gpt-4-turbo-preview",
-    messages:[
-      {"role": "system", "content": "盧振興的AI助手"},
-      {"role": "user", "content": event.message.text},
+    model: "gpt-4-turbo-preview",
+    messages: [
+      { "role": "system", "content": "盧振興的AI助手" },
+      { "role": "user", "content": event.message.text },
     ],
-    functions:function_descriptions,
-    function_call:"auto",
+    functions: function_descriptions,
+    function_call: "auto",
   });
   const output = response.choices[0].message;
 
@@ -173,33 +173,34 @@ async function handleEvent(event) {
   const targetFinance = await fetchStockData(stockCode)
 
   const chatResponse = await openai.chat.completions.create({
-    model:"gpt-4-turbo-preview",
-    messages:[
-        {role:"system",content:"K線分析師"},
-        {role:"user",content:"根據k線資料給出一些技術分析:"+targetChat}
+    model: "gpt-4-turbo-preview",
+    messages: [
+      { role: "system", content: "K線分析師" },
+      { role: "user", content: "根據k線資料給出一些技術分析:" + targetChat }
     ],
   })
 
-   // 获取k線回复的文本
-   const chatResponseResult = chatResponse.choices[0].message.content;
+  // 获取k線回复的文本
+  const chatResponseResult = chatResponse.choices[0].message.content;
 
-   const financeResponse = await openai.chat.completions.create({
-    model:"gpt-4-turbo-preview",
-    messages:[
-        {role:"system",content:"財報分析師"},
-        {role:"user",content:"根據財報為該公司寫一段總結並且進行評分,滿分10分: "+targetFinance}
+  const financeResponse = await openai.chat.completions.create({
+    model: "gpt-4-turbo-preview",
+    messages: [
+      { role: "system", content: "財報分析師" },
+      // 使用JSON.stringify转换targetFinance对象为字符串
+      { role: "user", content: `根据财报为该公司写一段总结并且进行评分, 满分10分: ${JSON.stringify(targetFinance, null, 2)}` }
     ],
   })
 
-   const financeResponseResult = financeResponse.choices[0].message.content;
-   
-   const finalReply = chatResponseResult + "\n" +financeResponseResult;
+  const financeResponseResult = financeResponse.choices[0].message.content;
 
-   // 构造回复消息
-   const reply = { type: "text", text: finalReply };
-   
-   // 使用 LINE API 发送消息
-   return client.replyMessage(event.replyToken, reply);
+  const finalReply = chatResponseResult + "\n" + financeResponseResult;
+
+  // 构造回复消息
+  const reply = { type: "text", text: finalReply };
+
+  // 使用 LINE API 发送消息
+  return client.replyMessage(event.replyToken, reply);
 
 
 }
@@ -207,5 +208,5 @@ async function handleEvent(event) {
 // 监听端口
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-console.log(`listening on ${port}`);
+  console.log(`listening on ${port}`);
 });
