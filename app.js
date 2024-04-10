@@ -100,25 +100,25 @@ const fetchStockHistoryData = async (ticker) => {
       period1: fromDate,
       period2: toDate,
       interval: "1d", // 每天的数据
-      return:"object"
+      return: "object"
     };
 
     const historicalData = await yahooFinance.chart(ticker, queryOptions);
 
-     // 从响应中提取quote信息
-     const quotes = historicalData.indicators.quote[0];
-     const timestamps = historicalData.timestamp;
- 
-     // 使用提供的timestamps来构建每个数据点的日期
-     const simplifiedData = timestamps.map((time, index) => ({
-       date: new Date(time * 1000).toISOString().split('T')[0], // 转换UNIX时间戳为日期字符串
-       open: quotes.open[index],
-       high: quotes.high[index],
-       low: quotes.low[index],
-       close: quotes.close[index],
-     }));
- 
-     return simplifiedData;
+    // 从响应中提取quote信息
+    const quotes = historicalData.indicators.quote[0];
+    const timestamps = historicalData.timestamp;
+
+    // 使用提供的timestamps来构建每个数据点的日期
+    const simplifiedData = timestamps.map((time, index) => ({
+      date: new Date(time * 1000).toISOString().split('T')[0], // 转换UNIX时间戳为日期字符串
+      open: quotes.open[index],
+      high: quotes.high[index],
+      low: quotes.low[index],
+      close: quotes.close[index],
+    }));
+
+    return simplifiedData;
   } catch (error) {
     console.error(`Error fetching historical data for ${ticker}:`, error);
   }
@@ -166,10 +166,36 @@ async function handleEvent(event) {
 
   // 解析股票名稱和代碼
   // const stockName = JSON.parse(output.function_call.arguments).market_name;
-  const stockCode = JSON.parse(output.function_call.arguments).market_code;
+  // const stockCode = JSON.parse(output.function_call.arguments).market_code;
 
-  if (stockCode == 'undefined') {
-    // 构造回复消息
+  // 尝试解析股票代码，但需要确保这个过程不会抛出异常
+  let stockCode;
+  try {
+    stockCode = JSON.parse(output.function_call.arguments).market_code;
+  } catch (error) {
+    stockCode = undefined; // 如果解析失败，确保stockCode为undefined
+  }
+
+  if (typeof stockCode === 'undefined' || stockCode === null) {
+    // 触发正常对话逻辑
+    const chatResponse = await openai.chat.completions.create({
+      model: "gpt-4-turbo-preview",
+      messages: [
+        { "role": "system", "content": "盧振興的AI助手" },
+        { "role": "user", "content": event.message.text }, // 重复使用用户的原始消息
+      ],
+    });
+
+    const output = chatResponse.choices[0].message.content;
+    const reply = { type: "text", text: output };
+
+    // 使用 LINE API 发送消息
+    return client.replyMessage(event.replyToken, reply);
+  } else {
+    //分析k線
+    const targetChat = await fetchStockHistoryData(stockCode);
+    const targetFinance = await fetchStockData(stockCode)
+
     const chatResponse = await openai.chat.completions.create({
       model: "gpt-4-turbo-preview",
       messages: [
@@ -178,47 +204,30 @@ async function handleEvent(event) {
       ],
     })
 
-    const output = chatResponse.choices[0].message.content
-    const reply = { type: "text", text: output };
+    // 获取k線回复的文本
+    const chatResponseResult = chatResponse.choices[0].message.content;
+
+    const financeResponse = await openai.chat.completions.create({
+      model: "gpt-4-turbo-preview",
+      messages: [
+        { "role": "system", "content": "財報分析師" },
+        // 使用JSON.stringify转换targetFinance对象为字符串
+        { "role": "user", "content": `根据财报为该公司写一段总结并且进行评分, 满分10分，中文回答: ${JSON.stringify(targetFinance)}` }
+      ],
+    })
+
+    const financeResponseResult = financeResponse.choices[0].message.content;
+
+    const finalReply = chatResponseResult + "\n" + financeResponseResult;
+
+    // 构造回复消息
+    const reply = { type: "text", text: finalReply };
 
     // 使用 LINE API 发送消息
     return client.replyMessage(event.replyToken, reply);
+
+
   }
-  //分析k線
-  const targetChat = await fetchStockHistoryData(stockCode);
-  const targetFinance = await fetchStockData(stockCode)
-
-  const chatResponse = await openai.chat.completions.create({
-    model: "gpt-4-turbo-preview",
-    messages: [
-      { "role": "system", "content": "k線分析師" },
-      { "role": "user", "content": `分析k線資料,判斷是否適合買入，如果適合提供買入點建議，tp和sl:${JSON.stringify(targetChat)}` },
-    ],
-  })
-
-  // 获取k線回复的文本
-  const chatResponseResult = chatResponse.choices[0].message.content;
-
-  const financeResponse = await openai.chat.completions.create({
-    model: "gpt-4-turbo-preview",
-    messages: [
-      { "role": "system", "content": "財報分析師" },
-      // 使用JSON.stringify转换targetFinance对象为字符串
-      { "role": "user", "content": `根据财报为该公司写一段总结并且进行评分, 满分10分，中文回答: ${JSON.stringify(targetFinance)}` }
-    ],
-  })
-
-  const financeResponseResult = financeResponse.choices[0].message.content;
-
-  const finalReply = chatResponseResult + "\n" + financeResponseResult;
-
-  // 构造回复消息
-  const reply = { type: "text", text: finalReply };
-
-  // 使用 LINE API 发送消息
-  return client.replyMessage(event.replyToken, reply);
-
-
 }
 
 // 监听端口
